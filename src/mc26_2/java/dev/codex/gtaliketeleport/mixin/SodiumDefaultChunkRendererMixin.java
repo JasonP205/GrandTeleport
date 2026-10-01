@@ -1,6 +1,7 @@
 package dev.codex.gtaliketeleport.mixin;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.textures.GpuSampler;
 import dev.codex.gtaliketeleport.TeleportTransitionController;
 import net.caffeinemc.mods.sodium.client.gpu.device.batch.MultiDrawBatch;
@@ -45,8 +46,37 @@ public abstract class SodiumDefaultChunkRendererMixin {
     @Unique
     private static Field gtalikeTeleport$uniformBufferManagerField;
 
-    @Inject(method = "render", at = @At("HEAD"), cancellable = true, require = 0)
+    // Sodium 0.9.1 changed the uniform argument of render() from GpuBuffer to GpuBufferSlice. Both shapes are
+    // selected by full descriptor so the one that does not exist matches nothing and is skipped by require = 0;
+    // a name-only "render" selector would match either and fail the handler descriptor check instead.
+    @Inject(
+            method = "render(Lnet/caffeinemc/mods/sodium/client/render/chunk/ChunkRenderMatrices;Lnet/caffeinemc/mods/sodium/client/render/chunk/lists/ChunkRenderListIterable;Lnet/caffeinemc/mods/sodium/client/render/chunk/terrain/TerrainRenderPass;Lnet/caffeinemc/mods/sodium/client/render/viewport/CameraTransform;Lnet/caffeinemc/mods/sodium/client/util/FogParameters;ZLcom/mojang/blaze3d/textures/GpuSampler;Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lcom/mojang/blaze3d/buffers/GpuBuffer;)V",
+            at = @At("HEAD"),
+            cancellable = true,
+            require = 0
+    )
     private void gtalikeTeleport$writeFallbackTerrainFade(
+            ChunkRenderMatrices matrices,
+            ChunkRenderListIterable renderLists,
+            TerrainRenderPass renderPass,
+            CameraTransform camera,
+            FogParameters fog,
+            boolean useTranslucentSort,
+            GpuSampler sampler,
+            GpuBufferSlice uniformData,
+            GpuBuffer sectionTimeInfo,
+            CallbackInfo ci
+    ) {
+        gtalikeTeleport$applyFallbackTerrainFade(renderLists, renderPass, ci);
+    }
+
+    @Inject(
+            method = "render(Lnet/caffeinemc/mods/sodium/client/render/chunk/ChunkRenderMatrices;Lnet/caffeinemc/mods/sodium/client/render/chunk/lists/ChunkRenderListIterable;Lnet/caffeinemc/mods/sodium/client/render/chunk/terrain/TerrainRenderPass;Lnet/caffeinemc/mods/sodium/client/render/viewport/CameraTransform;Lnet/caffeinemc/mods/sodium/client/util/FogParameters;ZLcom/mojang/blaze3d/textures/GpuSampler;Lcom/mojang/blaze3d/buffers/GpuBuffer;Lcom/mojang/blaze3d/buffers/GpuBuffer;)V",
+            at = @At("HEAD"),
+            cancellable = true,
+            require = 0
+    )
+    private void gtalikeTeleport$writeFallbackTerrainFadeLegacy(
             ChunkRenderMatrices matrices,
             ChunkRenderListIterable renderLists,
             TerrainRenderPass renderPass,
@@ -56,6 +86,15 @@ public abstract class SodiumDefaultChunkRendererMixin {
             GpuSampler sampler,
             GpuBuffer uniformBuffer,
             GpuBuffer sectionTimeInfo,
+            CallbackInfo ci
+    ) {
+        gtalikeTeleport$applyFallbackTerrainFade(renderLists, renderPass, ci);
+    }
+
+    @Unique
+    private static void gtalikeTeleport$applyFallbackTerrainFade(
+            ChunkRenderListIterable renderLists,
+            TerrainRenderPass renderPass,
             CallbackInfo ci
     ) {
         if (TeleportTransitionController.shouldPreferDistantHorizonsOnlyTerrain()) {
