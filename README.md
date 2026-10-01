@@ -106,6 +106,20 @@ example:
 - `build/libs/grand-teleport-26.1.2-buildN.jar`
 - `build/libs/grand-teleport-26.2-buildN.jar`
 
+### Minecraft 26.2 without PrismLauncher
+
+The root build compiles the 26.x targets against a local PrismLauncher install.
+The `loom26_2` directory is a separate Fabric Loom build for the 26.2 sources
+that downloads Minecraft, Fabric, Sodium, and Mod Menu from Maven instead, so it
+works on any OS and launcher. It needs JDK 25 installed.
+
+```sh
+cd loom26_2
+./gradlew build
+```
+
+The jar is written to `loom26_2/build/libs/grand-teleport-26.2-buildN.jar`.
+
 ## License
 
 Grand Teleport source code and documentation are licensed under the MIT License,

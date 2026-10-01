@@ -1,0 +1,92 @@
+plugins {
+    id "net.fabricmc.fabric-loom" version "${loom_version}"
+}
+
+// Standalone Loom build for the Minecraft 26.2 sources. Unlike the buildMc26_2 task in the root project, it
+// downloads Minecraft, Fabric and the compile-only mod APIs from Maven, so no PrismLauncher install is needed.
+def rootProperties = new Properties()
+file("../gradle.properties").withInputStream { rootProperties.load(it) }
+
+def buildNumber = (project.findProperty("build_number") ?: rootProperties.getProperty("build_number")).toString()
+def javaVersion = 25
+
+version = "${project.minecraft_version}-build${buildNumber}"
+group = rootProperties.getProperty("maven_group")
+
+base {
+    archivesName = rootProperties.getProperty("archives_base_name")
+}
+
+repositories {
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = "https://api.modrinth.com/maven"
+            }
+        }
+        filter {
+            includeGroup "maven.modrinth"
+        }
+    }
+    maven {
+        name = "TerraformersMC"
+        url = "https://maven.terraformersmc.com/releases/"
+    }
+}
+
+sourceSets {
+    main {
+        java.srcDirs = ["../src/mc26_2/java"]
+        resources.srcDirs = ["../src/mc26_2/resources"]
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    compileOnly("maven.modrinth:sodium:${project.sodium_version}") {
+        transitive = false
+    }
+    compileOnly("com.terraformersmc:modmenu:${project.modmenu_version}") {
+        transitive = false
+    }
+}
+
+processResources {
+    def expandProperties = [
+            "version"                  : project.version.toString(),
+            "minecraft_version"        : project.minecraft_version,
+            "loader_version"           : project.loader_version,
+            "java_version"             : javaVersion,
+            "mixin_compatibility_level": "JAVA_${javaVersion}".toString()
+    ]
+    inputs.properties expandProperties
+    duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.EXCLUDE
+    filteringCharset "UTF-8"
+
+    filesMatching(["fabric.mod.json", "gtalike_teleport.mixins.json"]) {
+        expand expandProperties
+    }
+    from("../src/main/resources/assets") {
+        into "assets"
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = javaVersion
+    it.options.encoding = "UTF-8"
+}
+
+java {
+    sourceCompatibility = JavaVersion.toVersion(javaVersion)
+    targetCompatibility = JavaVersion.toVersion(javaVersion)
+}
+
+jar {
+    from("../LICENSE") {
+        rename { "${it}_${base.archivesName.get()}" }
+    }
+}
